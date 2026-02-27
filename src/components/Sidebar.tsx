@@ -112,18 +112,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, user }) => {
                   {user.avatarUrl ? (
                     <img
                       src={user.avatarUrl}
-                      alt={user.name}
+                      alt={user.username || user.name || "User"}
                       className="w-8 h-8 rounded-full bg-zinc-800 object-cover"
                     />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-600 to-cyan-500 flex items-center justify-center text-xs font-bold text-white shadow-[0_0_10px_rgba(16,185,129,0.4)]">
-                      {user.name.charAt(0).toUpperCase()}
+                      {(user.username || user.name || "?")
+                        .charAt(0)
+                        .toUpperCase()}
                     </div>
                   )}
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-zinc-950"></span>
                 </div>
                 <div className="flex-1 truncate">
-                  <p className="text-sm font-medium text-white">{user.name}</p>
+                  <p className="text-sm font-medium text-white">
+                    {user.username || user.name || "User"}
+                  </p>
                   <p className="text-xs text-zinc-500 truncate">
                     Pro Tier Active
                   </p>

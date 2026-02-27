@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
-import { ModelSlider } from "./ModelSlider";
+import { ModelDropdown } from "./ModelDropdown";
 import { ChatFeed } from "./ChatFeed";
 import { PromptInput } from "./PromptInput";
 import type { UserModel, ChatMessage, ModelTier } from "../types";
@@ -16,12 +16,14 @@ export const Layout: React.FC<LayoutProps> = ({
   initialMessages = [],
 }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [currentModel, setCurrentModel] = useState<ModelTier>("fast");
+  const [currentModel, setCurrentModel] = useState<ModelTier>(
+    "google/gemini-2.0-pro-exp-02-05:free",
+  );
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
 
-  // Mock handler for sending messages
-  const handleSendMessage = (content: string) => {
+  // Handler for sending messages to the true backend
+  const handleSendMessage = async (content: string) => {
     const newUserMsg: ChatMessage = {
       id: Date.now().toString(),
       role: "user",
@@ -32,21 +34,57 @@ export const Layout: React.FC<LayoutProps> = ({
     setMessages((prev) => [...prev, newUserMsg]);
     setIsTyping(true);
 
-    // Mock AI Response
-    setTimeout(
-      () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/chat/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+          modelTier: currentModel,
+          // If we had a real session mechanism, we would pass `sessionId` here.
+          // Our backend controller gracefully handles a missing sessionId by creating a new one.
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const json = await response.json();
+
+      if (json.success && json.data?.aiMessage) {
+        const aiMessageData = json.data.aiMessage;
+
         const newAIMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: aiMessageData._id || (Date.now() + 1).toString(),
           role: "assistant",
-          content: `This is a simulated ${currentModel} response to: "${content}"`,
-          timestamp: new Date(),
-          metadata: { modelUsed: currentModel },
+          content: aiMessageData.content,
+          timestamp: new Date(aiMessageData.createdAt || Date.now()),
+          metadata: {
+            modelUsed: aiMessageData.metadata?.modelUsed,
+            tokensUsed: aiMessageData.metadata?.tokensUsed,
+          },
         };
+
         setMessages((prev) => [...prev, newAIMsg]);
-        setIsTyping(false);
-      },
-      1500 + Math.random() * 2000,
-    ); // 1.5s - 3.5s delay
+      } else {
+        throw new Error("Invalid response structure from backend");
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI response:", error);
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content:
+          "⚠️ Error: Could not connect to the Luminous AI Core. Please ensure the backend is running on port 5000.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -106,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
             {/* AI Model Toggle Area */}
             <nav aria-label="Model selection">
-              <ModelSlider
+              <ModelDropdown
                 currentModel={currentModel}
                 onModelChange={setCurrentModel}
               />

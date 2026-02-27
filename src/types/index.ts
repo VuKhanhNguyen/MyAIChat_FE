@@ -1,12 +1,15 @@
 export type Role = "user" | "assistant" | "system";
 
-export type ModelTier = "fast" | "pro" | "ultra";
+export type ModelTier = "fast" | "pro" | "ultra" | (string & {});
 
 export interface UserModel {
-  id: string;
-  name: string;
+  id?: string;
+  _id?: string;
+  name?: string;
+  username?: string;
+  email?: string;
   avatarUrl?: string;
-  preferences: {
+  preferences?: {
     theme: "dark" | "light" | "system";
     reducedMotion: boolean;
   };
