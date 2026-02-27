@@ -69,12 +69,26 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
             }
           `}
         >
-          {/* Metadata Display (e.g. Model used) */}
-          {isAI && message.metadata?.modelUsed && (
+          {/* Metadata Display (e.g. Model used and Quota) */}
+          {isAI && message.metadata && (
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-500/70 select-none">
-                {message.metadata.modelUsed}
-              </span>
+              {message.metadata.modelUsed && (
+                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-500/70 select-none">
+                  {message.metadata.modelUsed}
+                </span>
+              )}
+              {message.metadata.rateLimitRemaining !== undefined &&
+                message.metadata.rateLimitRemaining !== null && (
+                  <>
+                    <span className="text-zinc-600 px-1">•</span>
+                    <span
+                      className="text-[10px] uppercase font-bold tracking-wider text-amber-500/70 select-none"
+                      title="Remaining requests for this model"
+                    >
+                      Quota: {message.metadata.rateLimitRemaining} left
+                    </span>
+                  </>
+                )}
             </div>
           )}
 

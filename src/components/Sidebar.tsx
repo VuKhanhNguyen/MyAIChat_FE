@@ -3,15 +3,27 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Variants } from "framer-motion";
-import type { UserModel } from "../types";
+import type { UserModel, ChatSessionMeta } from "../types";
 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   user: UserModel;
+  onNewChat?: () => void;
+  sessions?: ChatSessionMeta[];
+  activeSessionId?: string | null;
+  onSelectSession?: (id: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, user }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  isOpen,
+  onToggle,
+  user,
+  onNewChat,
+  sessions = [],
+  activeSessionId,
+  onSelectSession,
+}) => {
   // Variants for the sidebar animation
   const sidebarVariants: Variants = {
     open: {
@@ -25,6 +37,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, user }) => {
       transition: { type: "spring" as const, stiffness: 300, damping: 30 },
     },
   };
+
+  // Group sessions by Today / Previous
+  const todaySessions: ChatSessionMeta[] = [];
+  const olderSessions: ChatSessionMeta[] = [];
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  sessions.forEach((session) => {
+    const sessionDate = new Date(session.updatedAt);
+    if (sessionDate >= todayStart) {
+      todaySessions.push(session);
+    } else {
+      olderSessions.push(session);
+    }
+  });
 
   return (
     <>
@@ -42,6 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, user }) => {
             {/* Header / New Chat */}
             <div className="p-4 flex items-center justify-between border-b border-white/5">
               <button
+                onClick={onNewChat}
                 className="flex flex-1 items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-zinc-800/50 hover:bg-zinc-700/50 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none group"
                 aria-label="Start new chat"
               >
@@ -74,32 +103,67 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, user }) => {
 
             {/* Chat History Grouping */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-zinc-800">
-              <div className="space-y-1">
-                <h3 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
-                  Today
-                </h3>
-                <button className="w-full text-left px-3 py-2 text-sm text-zinc-300 hover:text-white bg-zinc-900/40 hover:bg-zinc-800/60 rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none border border-transparent hover:border-white/5">
-                  Quantum Computing Principles
-                </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none group">
-                  <span className="group-hover:text-emerald-400 transition-colors mr-2 opacity-0 group-hover:opacity-100">
-                    &bull;
-                  </span>
-                  React 19 Server Components
-                </button>
-              </div>
+              {todaySessions.length > 0 && (
+                <div className="space-y-1">
+                  <h3 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Today
+                  </h3>
+                  {todaySessions.map((s) => (
+                    <button
+                      key={s._id}
+                      onClick={() => onSelectSession && onSelectSession(s._id)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none border hover:border-white/5 group
+                        ${
+                          activeSessionId === s._id
+                            ? "text-white bg-zinc-900/80 border-white/5"
+                            : "text-zinc-400 hover:text-white hover:bg-zinc-800/40 border-transparent"
+                        }
+                      `}
+                    >
+                      {activeSessionId !== s._id && (
+                        <span className="group-hover:text-emerald-400 transition-colors mr-2 opacity-0 group-hover:opacity-100">
+                          &bull;
+                        </span>
+                      )}
+                      {s.title}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-              <div className="space-y-1">
-                <h3 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-6 mb-2">
-                  Previous 7 Days
-                </h3>
-                <button className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none">
-                  Aesthetic UI Design Review
-                </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-zinc-400 hover:text-white hover:bg-zinc-800/40 rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none">
-                  Cyberpunk Neon Palette Gen
-                </button>
-              </div>
+              {olderSessions.length > 0 && (
+                <div className="space-y-1">
+                  <h3 className="px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-6 mb-2">
+                    Previous 7 Days
+                  </h3>
+                  {olderSessions.map((s) => (
+                    <button
+                      key={s._id}
+                      onClick={() => onSelectSession && onSelectSession(s._id)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors truncate focus-visible:ring-2 focus-visible:ring-emerald-400 outline-none border hover:border-white/5 group
+                        ${
+                          activeSessionId === s._id
+                            ? "text-white bg-zinc-900/80 border-white/5"
+                            : "text-zinc-400 hover:text-white hover:bg-zinc-800/40 border-transparent"
+                        }
+                      `}
+                    >
+                      {activeSessionId !== s._id && (
+                        <span className="group-hover:text-emerald-400 transition-colors mr-2 opacity-0 group-hover:opacity-100">
+                          &bull;
+                        </span>
+                      )}
+                      {s.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {sessions.length === 0 && (
+                <div className="px-3 py-6 text-center text-sm text-zinc-500">
+                  No chat history yet
+                </div>
+              )}
             </div>
 
             {/* User Profile */}

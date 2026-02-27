@@ -3,7 +3,12 @@ import { Sidebar } from "./Sidebar";
 import { ModelDropdown } from "./ModelDropdown";
 import { ChatFeed } from "./ChatFeed";
 import { PromptInput } from "./PromptInput";
-import type { UserModel, ChatMessage, ModelTier } from "../types";
+import type {
+  UserModel,
+  ChatMessage,
+  ModelTier,
+  ChatSessionMeta,
+} from "../types";
 
 interface LayoutProps {
   user: UserModel;
@@ -21,6 +26,85 @@ export const Layout: React.FC<LayoutProps> = ({
   );
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isTyping, setIsTyping] = useState(false);
+
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSessionMeta[]>([]);
+
+  // Fetch all chat sessions on load
+  const loadSessions = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/chat/sessions");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setSessions(json.data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load sessions:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    loadSessions();
+  }, []);
+
+  // Fetch messages for a specific session
+  const handleSelectSession = async (sessionId: string) => {
+    try {
+      if (window.innerWidth < 1024) setSidebarOpen(false);
+
+      setMessages([]); // clear current chat view
+      setIsTyping(true); // show loader or at least block input briefly
+
+      const res = await fetch(
+        `http://localhost:5000/api/chat/session/${sessionId}`,
+      );
+      if (!res.ok) throw new Error("Failed to load session");
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        setCurrentSessionId(sessionId);
+
+        // Map backend message format to frontend ChatMessage format
+        const historyMessages: ChatMessage[] = json.data.messages.map(
+          (m: any) => ({
+            id: m._id,
+            role: m.role,
+            content: m.content,
+            timestamp: new Date(m.createdAt),
+            metadata: {
+              modelUsed: m.metadata?.modelUsed,
+              tokensUsed: m.metadata?.tokensUsed,
+              rateLimitRemaining: m.metadata?.rateLimitRemaining,
+            },
+          }),
+        );
+        setMessages(historyMessages);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessages([
+        {
+          id: "error",
+          role: "assistant",
+          content: "⚠️ Error loading chat history.",
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
+  // Function to wipe current chat
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(null);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false); // Auto close sidebar on mobile after starting new chat
+    }
+  };
 
   // Handler for sending messages to the true backend
   const handleSendMessage = async (content: string) => {
@@ -41,10 +125,9 @@ export const Layout: React.FC<LayoutProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          sessionId: currentSessionId,
           content,
           modelTier: currentModel,
-          // If we had a real session mechanism, we would pass `sessionId` here.
-          // Our backend controller gracefully handles a missing sessionId by creating a new one.
         }),
       });
 
@@ -55,6 +138,11 @@ export const Layout: React.FC<LayoutProps> = ({
       const json = await response.json();
 
       if (json.success && json.data?.aiMessage) {
+        // Capture new session ID returned from backend if we started a fresh one
+        if (json.data?.sessionId && !currentSessionId) {
+          setCurrentSessionId(json.data.sessionId);
+        }
+
         const aiMessageData = json.data.aiMessage;
 
         const newAIMsg: ChatMessage = {
@@ -65,10 +153,16 @@ export const Layout: React.FC<LayoutProps> = ({
           metadata: {
             modelUsed: aiMessageData.metadata?.modelUsed,
             tokensUsed: aiMessageData.metadata?.tokensUsed,
+            rateLimitRemaining: aiMessageData.metadata?.rateLimitRemaining,
           },
         };
 
         setMessages((prev) => [...prev, newAIMsg]);
+
+        // Refresh titles async so it doesn't block UI if this is a new session
+        if (!currentSessionId) {
+          loadSessions();
+        }
       } else {
         throw new Error("Invalid response structure from backend");
       }
@@ -96,6 +190,10 @@ export const Layout: React.FC<LayoutProps> = ({
           isOpen={isSidebarOpen}
           onToggle={() => setSidebarOpen(!isSidebarOpen)}
           user={user}
+          onNewChat={handleNewChat}
+          sessions={sessions}
+          activeSessionId={currentSessionId}
+          onSelectSession={handleSelectSession}
         />
 
         {/* Main Content Area */}
@@ -147,6 +245,12 @@ export const Layout: React.FC<LayoutProps> = ({
               <ModelDropdown
                 currentModel={currentModel}
                 onModelChange={setCurrentModel}
+                rateLimitRemaining={
+                  messages.length > 0
+                    ? messages[messages.length - 1]?.metadata
+                        ?.rateLimitRemaining
+                    : null
+                }
               />
             </nav>
 

@@ -13,27 +13,41 @@ export interface ModelOption {
 
 export const FREE_MODELS: ModelOption[] = [
   {
-    id: "google/gemma-3-12b-it:free",
-    name: "Gemma 3 12B",
-    provider: "Google",
-    description: "Highly capable reasoning model by Google.",
-  },
-  {
     id: "arcee-ai/trinity-large-preview:free",
     name: "Trinity Large",
     provider: "Arcee AI",
-    description: "Advanced reasoning model.",
+    description: "Highly capable reasoning model by Arcee AI.",
+  },
+  {
+    id: "stepfun/step-3.5-flash:free",
+    name: "Step 3.5 Flash",
+    provider: "StepFun",
+    description: "Fast and efficient reasoning model by StepFun.",
+  },
+  {
+    id: "z-ai/glm-4.5-air:free",
+    name: "GLM 4.5 Air",
+    provider: "Z-AI",
+    description: "Fast and efficient reasoning model by Z-AI.",
+  },
+  {
+    id: "nvidia/nemotron-3-nano-30b-a3b:free",
+    name: "Nemotron 3 Nano",
+    provider: "NVIDIA",
+    description: "Fast and efficient reasoning model by NVIDIA.",
   },
 ];
 
 interface ModelDropdownProps {
   currentModel: ModelTier;
   onModelChange: (model: ModelTier) => void;
+  rateLimitRemaining?: number | null;
 }
 
 export const ModelDropdown: React.FC<ModelDropdownProps> = ({
   currentModel,
   onModelChange,
+  rateLimitRemaining,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -58,7 +72,7 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-zinc-900/80 hover:bg-zinc-800 backdrop-blur-xl border border-white/10 rounded-xl transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 group"
+        className="flex items-center gap-3 px-4 py-2 bg-zinc-900/80 hover:bg-zinc-800 backdrop-blur-xl border border-white/10 rounded-xl transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 group"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
@@ -70,8 +84,21 @@ export const ModelDropdown: React.FC<ModelDropdownProps> = ({
             {activeModel.name}
           </span>
         </div>
+
+        {rateLimitRemaining !== undefined && rateLimitRemaining !== null && (
+          <div className="flex items-center gap-1.5 pl-2 ml-2 border-l border-white/10">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <span className="text-xs font-semibold text-amber-500/90 hidden sm:block">
+              {rateLimitRemaining} Left
+            </span>
+          </div>
+        )}
+
         <svg
-          className={`w-4 h-4 text-zinc-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 ml-2 text-zinc-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

@@ -15,6 +15,13 @@ export interface UserModel {
   };
 }
 
+export interface ChatSessionMeta {
+  _id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: Role;
@@ -24,6 +31,7 @@ export interface ChatMessage {
     isTyping?: boolean;
     tokensUsed?: number;
     modelUsed?: ModelTier;
+    rateLimitRemaining?: number | null;
   };
 }
 
